@@ -1,0 +1,181 @@
+建立visualization_history.html,可视化显示历史数据
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>传感器数据可视化</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial; padding: 20px; max-width: 1000px; margin: auto; }
+        .controls { margin: 20px 0; display: flex; gap: 10px; }
+        select, button { padding: 8px 16px; font-size: 16px; }
+        .chart-box { margin: 30px 0; }
+        canvas { max-width: 100%; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background: #f5f5f5; }
+    </style>
+</head>
+<body>
+    <h1>📊 物联网传感器数据可视化</h1>
+    
+    <div class="controls">
+        <select id="deviceSelect">
+            <option value="all">所有设备</option>
+        </select>
+        
+        <select id="sensorSelect">
+            <option value="all">所有类型</option>
+            <option value="temperature">温度</option>
+            <option value="humidity">湿度</option>
+            <option value="pressure">压力</option>
+        </select>
+        
+        <button onclick="loadData()">加载数据</button>
+        <button onclick="location.reload()">刷新页面</button>
+    </div>
+    
+    <div class="chart-box">
+        <h2>数据趋势图</h2>
+        <canvas id="myChart"></canvas>
+    </div>
+    
+    <h2>数据表格</h2>
+    <table id="dataTable">
+        <thead>
+            <tr><th>ID</th><th>设备</th><th>类型</th><th>数值</th><th>时间</th></tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+    
+    <div style="margin-top: 30px; padding: 20px; background: #f9f9f9; border-radius: 5px;">
+        <h3>📝 实验说明</h3>
+        <p>1. 首先运行 database.py 生成数据库和JSON数据文件</p>
+        <p>2. 然后打开此HTML文件查看可视化效果</p>
+        <p>3. 点击"加载数据"按钮显示图表和数据表格</p>
+    </div>
+
+    <script>
+        let chart = null;
+        let sensorData = [];
+        
+        // 初始化图表
+        function initChart() {
+            const ctx = document.getElementById('myChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '传感器数据',
+                        data: [],
+                        borderColor: 'blue',
+                        backgroundColor: 'rgba(0, 0, 255, 0.1)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: false }
+                    }
+                }
+            });
+        }
+        
+        // 加载JSON数据
+        async function loadData() {
+            try {
+                // 从JSON文件加载数据
+                const response = await fetch('sensor_data.json');
+                sensorData = await response.json();
+                
+                console.log('加载到数据:', sensorData);
+                updateUI();
+                
+            } catch (error) {
+                console.error('加载数据失败:', error);
+                alert('请先运行 database.py 生成数据文件！');
+                // 使用模拟数据
+                useMockData();
+            }
+        }
+        
+        // 更新界面
+        function updateUI() {
+            const deviceSelect = document.getElementById('deviceSelect');
+            const sensorSelect = document.getElementById('sensorSelect');
+            const selectedDevice = deviceSelect.value;
+            const selectedSensor = sensorSelect.value;
+            
+            // 更新设备选项
+            const devices = [...new Set(sensorData.map(d => d.device_id))];
+            deviceSelect.innerHTML = '<option value="all">所有设备</option>';
+            devices.forEach(device => {
+                deviceSelect.innerHTML += `<option value="${device}">${device}</option>`;
+            });
+            deviceSelect.value = selectedDevice;
+            
+            // 筛选数据
+            const filteredData = sensorData.filter(item => {
+                const deviceMatch = selectedDevice === 'all' || item.device_id === selectedDevice;
+                const sensorMatch = selectedSensor === 'all' || item.sensor_type === selectedSensor;
+                return deviceMatch && sensorMatch;
+            });
+            
+            // 更新表格
+            updateTable(filteredData);
+            
+            // 更新图表（只显示温度数据）
+            const tempData = filteredData.filter(d => d.sensor_type === 'temperature');
+            updateChart(tempData);
+        }
+        
+        // 更新表格
+        function updateTable(data) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            
+            data.forEach(item => {
+                const row = `<tr>
+                    <td>${item.id}</td>
+                    <td>${item.device_id}</td>
+                    <td>${item.sensor_type}</td>
+                    <td>${item.value}</td>
+                    <td>${item.timestamp}</td>
+                </tr>`;
+                tbody.innerHTML += row;
+            });
+        }
+        
+        // 更新图表
+        function updateChart(data) {
+            chart.data.labels = data.map(d => d.timestamp.substring(11, 16)); // 只显示时间
+            chart.data.datasets[0].data = data.map(d => d.value);
+            chart.data.datasets[0].label = '温度数据';
+            chart.update();
+        }
+        
+        // 使用模拟数据（当JSON文件不存在时）
+        function useMockData() {
+            sensorData = [
+                {id: 1, device_id: 'device_001', sensor_type: 'temperature', value: 25.3, timestamp: '2024-01-15 10:00:00'},
+                {id: 2, device_id: 'device_001', sensor_type: 'temperature', value: 26.1, timestamp: '2024-01-15 11:00:00'},
+                {id: 3, device_id: 'device_001', sensor_type: 'humidity', value: 65.2, timestamp: '2024-01-15 11:30:00'},
+                {id: 4, device_id: 'device_002', sensor_type: 'temperature', value: 24.8, timestamp: '2024-01-15 12:00:00'},
+            ];
+            updateUI();
+        }
+        
+        // 页面加载时初始化
+        window.onload = function() {
+            initChart();
+            // 自动加载数据
+            setTimeout(() => loadData(), 500);
+            
+            // 当下拉菜单变化时重新筛选
+            document.getElementById('deviceSelect').onchange = updateUI;
+            document.getElementById('sensorSelect').onchange = updateUI;
+        };
+    </script>
+</body>
+</html>
