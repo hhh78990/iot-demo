@@ -1,0 +1,83 @@
+//生成visualization.html，用于显示在线实时显示温湿度数据
+<!DOCTYPE html>
+<html>
+<head>
+    <title>物联网温湿度监控</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.0/dist/echarts.min.js"></script>
+</head>
+<body>
+    <div id="main" style="width: 100%; height: 400px;"></div>
+    
+    <script>
+        var myChart = echarts.init(document.getElementById('main'));
+        var option = {
+            title: {
+                text: '实时数据'
+            },
+            tooltip: {
+                trigger: 'axis'
+            },
+            legend: {
+                data: ['温度', '湿度']
+            },
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '3%',
+                containLabel: true
+            },
+            xAxis: {
+                type: 'category',
+                boundaryGap: false,
+                data: []
+            },
+            yAxis: {
+                type: 'value'
+            },
+            series: [
+                {
+                    name: '温度',
+                    type: 'line',
+                    data: []
+                },
+                {
+                    name: '湿度',
+                    type: 'line',
+                    data: []
+                }
+            ]
+        };
+
+        myChart.setOption(option);
+
+        function updateData(data) {
+            var xAxisData = option.xAxis.data;
+            var seriesData1 = option.series[0].data;
+            var seriesData2 = option.series[1].data;
+            
+            xAxisData.push(data.time);
+            seriesData1.push(data.temperature);
+            seriesData2.push(data.humidity);
+            
+            // 修正逻辑：同时移除所有数据列的旧数据
+            if (xAxisData.length > 10) {
+                xAxisData.shift();
+                seriesData1.shift();
+                seriesData2.shift(); // 同时移除湿度数据
+            }
+            
+            myChart.setOption(option);
+        }
+
+        // 示例数据更新（可选）
+        // setInterval(function() {
+        //     var now = new Date();
+        //     updateData({
+        //         time: now.toLocaleTimeString(),
+        //         temperature: Math.random() * 30 + 10,
+        //         humidity: Math.random() * 50 + 30
+        //     });
+        // }, 1000);
+    </script>
+</body>
+</html>
